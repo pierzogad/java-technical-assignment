@@ -5,11 +5,14 @@ import java.math.RoundingMode;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.stream.Collectors;
 
 public class Basket {
     private final List<Item> items;
+    private final PromotionsRepository promotionsRepository;
 
-    public Basket() {
+    public Basket(PromotionsRepository promotionsRepository) {
+        this.promotionsRepository = promotionsRepository;
         this.items = new ArrayList<>();
     }
 
@@ -47,7 +50,14 @@ public class Basket {
          *  which provides that functionality.
          */
         private BigDecimal discounts() {
-            return BigDecimal.ZERO;
+            return items.stream()
+                    .filter(item -> item.getPromotionId() != null)
+                    .collect(Collectors.groupingBy(Item::getPromotionId))
+                    .entrySet().stream()
+                    .map(group -> promotionsRepository.get(group.getKey()).calculateDiscount(group.getValue()))
+                    .reduce(BigDecimal::add)
+                    .orElse(BigDecimal.ZERO)
+                    .setScale(2, RoundingMode.HALF_UP);
         }
 
         private BigDecimal calculate() {

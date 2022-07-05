@@ -14,11 +14,15 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 
 class BasketTest {
 
+    public static final String TEST_PROMOTION_ONE = "some promotion";
+    public static final String TEST_PROMOTION_TWO = "other promotion";
+    public static final PromotionsRepository promotionsRepository = new PromotionsRepository();
+
     @DisplayName("basket provides its total value when containing...")
     @MethodSource
     @ParameterizedTest(name = "{0}")
     void basketProvidesTotalValue(String description, String expectedTotal, Iterable<Item> items) {
-        final Basket basket = new Basket();
+        final Basket basket = new Basket(promotionsRepository);
         items.forEach(basket::add);
         assertEquals(new BigDecimal(expectedTotal), basket.total());
     }
@@ -29,9 +33,20 @@ class BasketTest {
                 aSingleItemPricedPerUnit(),
                 multipleItemsPricedPerUnit(),
                 aSingleItemPricedByWeight(),
-                multipleItemsPricedByWeight()
+                multipleItemsPricedByWeight(),
+                withPromotionalItem()
         );
     }
+
+    private static Arguments withPromotionalItem() {
+        promotionsRepository.add(TEST_PROMOTION_ONE, list -> new BigDecimal("0.54"));
+        promotionsRepository.add(TEST_PROMOTION_TWO, list -> new BigDecimal("0.10"));
+        return Arguments.of("Mix of promotional and regular items", "2.65",
+                Arrays.asList(aPromotionalPackOfDigestives(TEST_PROMOTION_ONE),
+                        aPromotionalPintOfMilk(TEST_PROMOTION_TWO),
+                        twoFiftyGramsOfAmericanSweets()));
+    }
+
 
     private static Arguments aSingleItemPricedByWeight() {
         return Arguments.of("a single weighed item", "1.25", Collections.singleton(twoFiftyGramsOfAmericanSweets()));
@@ -60,9 +75,18 @@ class BasketTest {
         return new Product(new BigDecimal("0.49")).oneOf();
     }
 
+    private static Item aPromotionalPintOfMilk(String promotionId) {
+        return new Product(new BigDecimal("0.49"), promotionId).oneOf();
+    }
+
     private static Item aPackOfDigestives() {
         return new Product(new BigDecimal("1.55")).oneOf();
     }
+
+    private static Item aPromotionalPackOfDigestives(String promotionId) {
+        return new Product(new BigDecimal("1.55"), promotionId).oneOf();
+    }
+
 
     private static WeighedProduct aKiloOfAmericanSweets() {
         return new WeighedProduct(new BigDecimal("4.99"));
