@@ -1,6 +1,8 @@
 package kata.supermarket;
 
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
@@ -34,7 +36,8 @@ class BasketTest {
                 multipleItemsPricedPerUnit(),
                 aSingleItemPricedByWeight(),
                 multipleItemsPricedByWeight(),
-                withPromotionalItem()
+                withPromotionalItem(),
+                withRepeatedPromotionalItem()
         );
     }
 
@@ -47,6 +50,30 @@ class BasketTest {
                         twoFiftyGramsOfAmericanSweets()));
     }
 
+    private static Arguments withRepeatedPromotionalItem() {
+        promotionsRepository.add(TEST_PROMOTION_ONE, list -> new BigDecimal("0.54"));
+        // promotion for TEST_PROMOTION_ONE applied ONCE for all.
+        // 3 * 1.55 - 0.54 = 4.11
+        return Arguments.of("Mix of promotional and regular items", "4.11",
+                Arrays.asList(aPromotionalPackOfDigestives(TEST_PROMOTION_ONE),
+                        aPromotionalPackOfDigestives(TEST_PROMOTION_ONE),
+                        aPromotionalPackOfDigestives(TEST_PROMOTION_ONE)));
+    }
+
+    @Test
+    public void missingPromotionProducesNPE() {
+        final Basket basket = new Basket(promotionsRepository);
+        basket.add(aPromotionalPintOfMilk(TEST_PROMOTION_ONE));
+        Assertions.assertThrows(NullPointerException.class, basket::total);
+    }
+
+    @Test
+    public void exceptionFromPromotionCalculationIsPropagated() {
+        promotionsRepository.add(TEST_PROMOTION_ONE, list -> {throw new RuntimeException("boom");});
+        final Basket basket = new Basket(promotionsRepository);
+        basket.add(aPromotionalPintOfMilk(TEST_PROMOTION_ONE));
+        RuntimeException exception = Assertions.assertThrows(RuntimeException.class, basket::total, "boom");
+    }
 
     private static Arguments aSingleItemPricedByWeight() {
         return Arguments.of("a single weighed item", "1.25", Collections.singleton(twoFiftyGramsOfAmericanSweets()));
